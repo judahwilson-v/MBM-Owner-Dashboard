@@ -52,7 +52,7 @@ export function SalesChart({ data }: { data: any[] }) {
           <Tooltip 
             cursor={{ fill: '#f39c12', opacity: 0.1 }}
             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-            formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']}
+            formatter={(value: any) => [`₹${Number(value || 0).toLocaleString()}`, 'Revenue']}
           />
           <Bar dataKey="total" fill="#f39c12" radius={[4, 4, 0, 0]} maxBarSize={40} />
         </BarChart>
