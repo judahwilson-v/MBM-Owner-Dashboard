@@ -1,9 +1,13 @@
 import { createClient } from "@/utils/supabase/server";
-import { Activity, CreditCard, DollarSign, Users } from "lucide-react";
+import { Activity, CreditCard, DollarSign, LogOut, Users } from "lucide-react";
+import { logout } from "./login/actions";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   
+  // Get the current logged-in user
+  const { data: { user } } = await supabase.auth.getUser();
+
   // Verify connection by querying global_settings
   const { data: globalSettings, error } = await supabase
     .from("global_settings")
@@ -17,11 +21,28 @@ export default async function DashboardPage() {
   return (
     <div className="flex-1 space-y-4 p-8 pt-6 bg-slate-50 min-h-screen">
       <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Owner Dashboard - {quarryName}</h2>
-        <div className="flex items-center space-x-2">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Owner Dashboard - {quarryName}</h2>
+          {user && (
+            <p className="text-muted-foreground text-slate-500 mt-1">
+              Welcome back, {user.email}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center space-x-4">
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
             {isConnected ? '🟢 Sync Connected' : '🔴 Sync Error'}
           </div>
+          
+          <form action={logout}>
+            <button 
+              type="submit" 
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 border border-slate-300 bg-white hover:bg-slate-100 h-9 px-4 py-2"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </button>
+          </form>
         </div>
       </div>
       
