@@ -2,6 +2,16 @@ import { createClient } from "@/utils/supabase/server";
 import { Activity, CreditCard, DollarSign, LogOut, Users } from "lucide-react";
 import { logout } from "./login/actions";
 
+// Helper to format currency
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   
@@ -17,6 +27,55 @@ export default async function DashboardPage() {
 
   const isConnected = !error && globalSettings;
   const quarryName = globalSettings?.quarry_name || "MBM Quarry";
+
+  // Date boundaries for queries
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStartStr = today.toISOString();
+  
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthStartStr = monthStart.toISOString();
+
+  // 1. Query Today's Sales
+  const { data: todaysSalesData } = await supabase
+    .from('outgoing_sales')
+    .select('final_amount')
+    .gte('sale_date', todayStartStr);
+    
+  const todaysSales = todaysSalesData?.reduce((sum, sale) => sum + (sale.final_amount || 0), 0) || 0;
+
+  // 2. Query Monthly P/L
+  // Revenue
+  const { data: monthlySalesData } = await supabase
+    .from('outgoing_sales')
+    .select('final_amount')
+    .gte('sale_date', monthStartStr);
+  const monthlyRevenue = monthlySalesData?.reduce((sum, sale) => sum + (sale.final_amount || 0), 0) || 0;
+  
+  // Expenses
+  const { data: monthlyExpensesData } = await supabase
+    .from('expenses')
+    .select('amount')
+    .gte('expense_date', monthStartStr);
+  const monthlyExpenses = monthlyExpensesData?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0;
+  
+  const monthlyPL = monthlyRevenue - monthlyExpenses;
+
+  // 3. Query Cash Position
+  // Fetch latest day book entry
+  const { data: latestDayBook } = await supabase
+    .from('day_books')
+    .select('closing_cash_balance')
+    .order('business_date', { ascending: false })
+    .limit(1)
+    .single();
+    
+  const cashPosition = latestDayBook?.closing_cash_balance || 0;
+
+  // 4. Query Active Parties
+  const { count: partiesCount } = await supabase
+    .from('parties')
+    .select('*', { count: 'exact', head: true });
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6 bg-slate-50 min-h-screen">
@@ -52,9 +111,9 @@ export default async function DashboardPage() {
             <h3 className="tracking-tight text-sm font-medium">Today's Sales</h3>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-bold">₹0.00</div>
-          <p className="text-xs text-muted-foreground text-slate-500">
-            Pending implementation
+          <div className="text-2xl font-bold">{formatCurrency(todaysSales)}</div>
+          <p className="text-xs text-muted-foreground text-slate-500 mt-1">
+            Total sales processed today
           </p>
         </div>
         
@@ -63,9 +122,11 @@ export default async function DashboardPage() {
             <h3 className="tracking-tight text-sm font-medium">Monthly P/L</h3>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-bold">₹0.00</div>
-          <p className="text-xs text-muted-foreground text-slate-500">
-            Pending implementation
+          <div className={`text-2xl font-bold ${monthlyPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {monthlyPL >= 0 ? '+' : ''}{formatCurrency(monthlyPL)}
+          </div>
+          <p className="text-xs text-muted-foreground text-slate-500 mt-1">
+            Revenue minus expenses this month
           </p>
         </div>
         
@@ -74,9 +135,9 @@ export default async function DashboardPage() {
             <h3 className="tracking-tight text-sm font-medium">Cash Position</h3>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-bold">₹0.00</div>
-          <p className="text-xs text-muted-foreground text-slate-500">
-            Pending implementation
+          <div className="text-2xl font-bold">{formatCurrency(cashPosition)}</div>
+          <p className="text-xs text-muted-foreground text-slate-500 mt-1">
+            From latest day book closing
           </p>
         </div>
         
@@ -85,9 +146,9 @@ export default async function DashboardPage() {
             <h3 className="tracking-tight text-sm font-medium">Active Parties</h3>
             <Users className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-bold">0</div>
-          <p className="text-xs text-muted-foreground text-slate-500">
-            Pending implementation
+          <div className="text-2xl font-bold">{partiesCount || 0}</div>
+          <p className="text-xs text-muted-foreground text-slate-500 mt-1">
+            Total registered accounts
           </p>
         </div>
       </div>
