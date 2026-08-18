@@ -31,7 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       .select("quarry_name")
       .limit(1)
       .single();
-    isConnected = !error && globalSettings;
+    isConnected = !error && globalSettings !== null;
   }
 
   return (
