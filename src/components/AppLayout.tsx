@@ -1,88 +1,119 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Truck, Package, LogOut, Settings, Bell, Search } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  Truck, 
+  Database,
+  Activity,
+  LogOut
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import React from "react";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Sales Log", href: "/sales", icon: Truck },
-  { name: "Boulders", href: "/boulder", icon: Package },
-];
+interface AppLayoutProps {
+  children: React.ReactNode;
+  isConnected: boolean;
+  quarryName: string;
+}
 
-export function AppLayout({ children, userEmail, isConnected }: { children: React.ReactNode; userEmail?: string; isConnected: boolean }) {
+export function AppLayout({ children, isConnected, quarryName }: AppLayoutProps) {
   const pathname = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+
+  // Add subtle shadow to top header on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navigation = [
+    { name: 'Home', href: '/', icon: LayoutDashboard },
+    { name: 'Sales', href: '/sales', icon: Truck },
+    { name: 'Boulders', href: '/boulder', icon: Database },
+  ];
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 hidden md:flex flex-col border-r border-slate-200 bg-white">
-        <div className="h-16 flex items-center px-6 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">MB</span>
+    <div className="flex flex-col min-h-screen bg-slate-50 pb-20">
+      
+      {/* Mobile Top Header (Fixed) */}
+      <header className={cn(
+        "sticky top-0 z-40 w-full bg-white/80 backdrop-blur-xl transition-shadow duration-200 border-b border-slate-200",
+        scrolled ? "shadow-sm" : ""
+      )}>
+        <div className="flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
+              <Activity className="h-5 w-5 text-white" />
             </div>
-            <span className="font-semibold text-lg tracking-tight">Quarry Admin</span>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold tracking-tight text-slate-900 leading-tight">
+                {quarryName}
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <div className={cn(
+                  "h-2 w-2 rounded-full",
+                  isConnected ? "bg-emerald-500" : "bg-rose-500 animate-pulse"
+                )} />
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+                  {isConnected ? 'Live' : 'Offline'}
+                </span>
+              </div>
+            </div>
           </div>
+
+          <form action="/login/actions/logout" method="POST">
+            <button 
+              type="submit"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </form>
         </div>
-        
-        <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          <div className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Menu
-          </div>
+      </header>
+
+      {/* Main Scrollable Content */}
+      <main className="flex-1 w-full max-w-lg mx-auto">
+        <div className="p-4 sm:p-6 animate-in fade-in duration-500">
+          {children}
+        </div>
+      </main>
+
+      {/* Mobile Bottom Navigation (Fixed) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 pb-safe">
+        <div className="flex h-16 max-w-lg mx-auto">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={cn(
-                  "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200",
-                  isActive
-                    ? "bg-slate-100 text-blue-700"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                )}
+                className="flex-1 flex flex-col items-center justify-center gap-1 relative"
               >
-                <item.icon
+                {isActive && (
+                  <div className="absolute top-0 w-8 h-1 bg-indigo-600 rounded-b-full" />
+                )}
+                <item.icon 
                   className={cn(
-                    "mr-3 flex-shrink-0 h-5 w-5 transition-colors duration-200",
-                    isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500"
-                  )}
-                  aria-hidden="true"
+                    "h-5 w-5 transition-colors",
+                    isActive ? "text-indigo-600" : "text-slate-400"
+                  )} 
                 />
-                {item.name}
+                <span className={cn(
+                  "text-[10px] font-medium transition-colors",
+                  isActive ? "text-indigo-900" : "text-slate-500"
+                )}>
+                  {item.name}
+                </span>
               </Link>
             );
           })}
         </div>
-
-        <div className="p-4 border-t border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center">
-              <span className="text-sm font-medium text-slate-600">
-                {userEmail?.charAt(0).toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-medium text-slate-900 truncate">Owner</span>
-              <span className="text-xs text-slate-500 truncate">{userEmail}</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header */}
-        <header className="h-16 flex-shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6 lg:px-8 shadow-sm z-10">
-          <div className="flex-1 flex">
-            <form className="w-full max-w-md relative hidden sm:flex" action="#" method="GET">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="search"
-                name="search"
                 className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md leading-5 bg-slate-50 placeholder-slate-500 focus:outline-none focus:placeholder-slate-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-shadow duration-200"
                 placeholder="Search globally..."
               />

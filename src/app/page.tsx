@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
-import { Activity, CreditCard, DollarSign, Users, TrendingUp, BarChart3, Truck } from "lucide-react";
+import { Activity, CreditCard, DollarSign, Users, TrendingUp, Truck, ChevronRight } from "lucide-react";
 import React from "react";
+import Link from "next/link";
 
 // Helper to format currency
 const formatCurrency = (amount: number) => {
@@ -56,128 +57,140 @@ export default async function DashboardPage() {
     
   const cashPosition = latestDayBook?.closing_cash_balance || 0;
 
-  // 4. Query Active Parties
-  const { count: partiesCount } = await supabase
-    .from('parties')
-    .select('*', { count: 'exact', head: true });
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div>
+    <div className="space-y-6 animate-in fade-in duration-500 pb-6">
+      
+      {/* Mobile Greeting */}
+      <div className="pt-2 pb-4">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Overview</h1>
-        <p className="text-slate-500 mt-1">Real-time financial and operational metrics.</p>
+        <p className="text-slate-500 mt-0.5 text-sm">Today's live metrics</p>
       </div>
       
-      {/* KPI Cards (Tremor Style) */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard 
-          title="Today's Sales" 
-          value={formatCurrency(todaysSales)} 
-          subValue={`${todaysQty.toFixed(0)} CFT dispatched`}
-          icon={DollarSign} 
-        />
-        <KpiCard 
-          title="Monthly P/L" 
-          value={formatCurrency(monthlyPL)} 
-          subValue={monthlyPL >= 0 ? "Profitable" : "Operating at loss"}
-          icon={TrendingUp} 
-          trend={monthlyPL >= 0 ? 'up' : 'down'}
-        />
+      {/* Primary KPI: Today's Sales (Hero Card) */}
+      <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-indigo-600 to-blue-700 p-6 shadow-lg shadow-indigo-600/20 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+        <div className="flex items-center justify-between relative z-10">
+          <h3 className="text-indigo-100 font-medium text-sm">Today's Sales</h3>
+          <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
+            <DollarSign className="h-5 w-5 text-white" />
+          </div>
+        </div>
+        <div className="mt-4 relative z-10">
+          <div className="text-4xl font-bold tracking-tight">{formatCurrency(todaysSales)}</div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center rounded-full bg-emerald-400/20 px-2 py-0.5 text-xs font-medium text-emerald-200 border border-emerald-400/30">
+              <TrendingUp className="mr-1 h-3 w-3" /> Live
+            </span>
+            <span className="text-indigo-200 text-xs">{todaysQty.toFixed(0)} CFT dispatched</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary KPIs Grid (2 Columns on Mobile) */}
+      <div className="grid grid-cols-2 gap-3">
         <KpiCard 
           title="Cash Position" 
           value={formatCurrency(cashPosition)} 
-          subValue="Available cash in hand"
+          subValue="Available cash"
           icon={Activity} 
+          color="slate"
         />
         <KpiCard 
-          title="Active Parties" 
-          value={partiesCount?.toString() || "0"} 
-          subValue="Total registered accounts"
-          icon={Users} 
+          title="Monthly P/L" 
+          value={formatCurrency(Math.abs(monthlyPL))} 
+          subValue={monthlyPL >= 0 ? "Profit" : "Loss"}
+          icon={monthlyPL >= 0 ? TrendingUp : TrendingUp} 
+          color={monthlyPL >= 0 ? "emerald" : "rose"}
         />
       </div>
 
-      {/* Charts / Secondary Metrics Grid */}
-      <div className="grid gap-6 md:grid-cols-7 mt-8">
-        <div className="md:col-span-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-900">Monthly Revenue vs Expenses</h3>
-            <BarChart3 className="h-5 w-5 text-slate-400" />
-          </div>
-          <div className="h-[300px] w-full flex items-end gap-8 pb-6 pt-10 px-4 border-b border-l border-slate-100">
-            {/* Very simple mock chart for aesthetic purposes since Recharts needs client components */}
-            <div className="w-full relative h-full flex items-end group">
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded">
-                {formatCurrency(monthlyRevenue)}
-              </div>
-              <div className="w-full bg-blue-500 rounded-t-sm" style={{ height: '100%' }}></div>
-            </div>
-            <div className="w-full relative h-full flex items-end group">
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded">
-                {formatCurrency(monthlyExpenses)}
-              </div>
-              <div className="w-full bg-rose-400 rounded-t-sm" style={{ height: `${(monthlyExpenses / (monthlyRevenue || 1)) * 100}%`, minHeight: '10%' }}></div>
-            </div>
-          </div>
-          <div className="flex justify-around mt-4 text-sm text-slate-500">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div> Revenue
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-rose-400"></div> Expenses
-            </div>
-          </div>
+      {/* Today's Operations Tracker */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm mt-2">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-semibold text-slate-900">Operations</h3>
+          <Truck className="h-4 w-4 text-slate-400" />
         </div>
-
-        <div className="md:col-span-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-900">Today's Operations</h3>
-            <Truck className="h-5 w-5 text-slate-400" />
-          </div>
-          <div className="space-y-6 mt-6">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-slate-500">Vehicle Trips</span>
-                <span className="font-medium">{todaysSalesData?.length || 0} trips</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-blue-600 h-2 rounded-full" style={{ width: '45%' }}></div>
-              </div>
+        
+        <div className="space-y-5">
+          <div>
+            <div className="flex justify-between text-sm mb-1.5">
+              <span className="text-slate-500 font-medium">Vehicle Trips</span>
+              <span className="font-bold text-slate-900">{todaysSalesData?.length || 0}</span>
             </div>
-            
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-slate-500">Production Estimate</span>
-                <span className="font-medium">{formatCurrency(todaysQty * 0.8)} tons</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '65%' }}></div>
-              </div>
+            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div className="bg-blue-500 h-full rounded-full" style={{ width: '45%' }}></div>
+            </div>
+          </div>
+          
+          <div>
+            <div className="flex justify-between text-sm mb-1.5">
+              <span className="text-slate-500 font-medium">Est. Production</span>
+              <span className="font-bold text-slate-900">{formatCurrency(todaysQty * 0.8)} tons</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div className="bg-emerald-500 h-full rounded-full" style={{ width: '65%' }}></div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Quick Actions / Navigation */}
+      <div className="pt-2 space-y-3">
+        <h3 className="text-sm font-semibold text-slate-900 px-1">Quick Access</h3>
+        <Link href="/sales" className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-sm active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-50 rounded-xl">
+              <Truck className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div>
+              <div className="font-semibold text-slate-900">Outgoing Sales</div>
+              <div className="text-xs text-slate-500">View recent material dispatches</div>
+            </div>
+          </div>
+          <ChevronRight className="h-5 w-5 text-slate-400" />
+        </Link>
+
+        <Link href="/boulder" className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-sm active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-rose-50 rounded-xl">
+              <Activity className="h-5 w-5 text-rose-600" />
+            </div>
+            <div>
+              <div className="font-semibold text-slate-900">Incoming Boulders</div>
+              <div className="text-xs text-slate-500">View raw material purchases</div>
+            </div>
+          </div>
+          <ChevronRight className="h-5 w-5 text-slate-400" />
+        </Link>
+      </div>
+
     </div>
   );
 }
 
-function KpiCard({ title, value, subValue, icon: Icon, trend }: { title: string, value: string | number, subValue: string, icon: any, trend?: 'up' | 'down' }) {
+function KpiCard({ title, value, subValue, icon: Icon, color = "slate" }: { title: string, value: string | number, subValue: string, icon: any, color?: "slate" | "emerald" | "rose" }) {
+  const colorMap = {
+    slate: "text-slate-600 bg-slate-50 border-slate-200",
+    emerald: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    rose: "text-rose-600 bg-rose-50 border-rose-200",
+  };
+  
+  const textMap = {
+    slate: "text-slate-900",
+    emerald: "text-emerald-700",
+    rose: "text-rose-700",
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow duration-200 relative overflow-hidden group">
-      {/* Subtle top border accent */}
-      <div className={`absolute top-0 left-0 w-full h-1 ${trend === 'down' ? 'bg-rose-500' : 'bg-blue-600'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-      
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-500 tracking-tight">{title}</h3>
-        <div className="p-2 bg-slate-50 rounded-lg">
-          <Icon className={`h-5 w-5 ${trend === 'down' ? 'text-rose-500' : 'text-slate-600'}`} />
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col justify-between h-32">
+      <div className="flex items-start justify-between">
+        <div className={`p-2 rounded-xl border ${colorMap[color]}`}>
+          <Icon className="h-4 w-4" />
         </div>
       </div>
-      <div className="mt-4">
-        <div className="text-3xl font-bold text-slate-900 tracking-tight">{value}</div>
-        <p className={`text-xs mt-1 font-medium ${trend === 'down' ? 'text-rose-600' : 'text-slate-500'}`}>
-          {subValue}
-        </p>
+      <div>
+        <div className={`text-xl font-bold tracking-tight ${textMap[color]}`}>{value}</div>
+        <div className="text-[11px] font-medium text-slate-500 mt-0.5">{title} &bull; {subValue}</div>
       </div>
     </div>
   );
