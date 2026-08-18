@@ -1,34 +1,20 @@
 import { createClient } from "@/utils/supabase/server";
-import { Activity, CreditCard, DollarSign, LogOut, Users } from "lucide-react";
-import { logout } from "./login/actions";
+import { Activity, CreditCard, DollarSign, Users, TrendingUp, BarChart3, Truck } from "lucide-react";
+import React from "react";
 
 // Helper to format currency
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 };
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   
-  // Get the current logged-in user
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Verify connection by querying global_settings
-  const { data: globalSettings, error } = await supabase
-    .from("global_settings")
-    .select("quarry_name")
-    .limit(1)
-    .single();
-
-  const isConnected = !error && globalSettings;
-  const quarryName = globalSettings?.quarry_name || "MBM Quarry";
-
-  // Date boundaries for queries
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStartStr = today.toISOString();
@@ -39,20 +25,19 @@ export default async function DashboardPage() {
   // 1. Query Today's Sales
   const { data: todaysSalesData } = await supabase
     .from('outgoing_sales')
-    .select('final_amount')
+    .select('final_amount, qty')
     .gte('sale_date', todayStartStr);
     
   const todaysSales = todaysSalesData?.reduce((sum, sale) => sum + (sale.final_amount || 0), 0) || 0;
+  const todaysQty = todaysSalesData?.reduce((sum, sale) => sum + (sale.qty || 0), 0) || 0;
 
   // 2. Query Monthly P/L
-  // Revenue
   const { data: monthlySalesData } = await supabase
     .from('outgoing_sales')
     .select('final_amount')
     .gte('sale_date', monthStartStr);
   const monthlyRevenue = monthlySalesData?.reduce((sum, sale) => sum + (sale.final_amount || 0), 0) || 0;
   
-  // Expenses
   const { data: monthlyExpensesData } = await supabase
     .from('expenses')
     .select('amount')
@@ -62,7 +47,6 @@ export default async function DashboardPage() {
   const monthlyPL = monthlyRevenue - monthlyExpenses;
 
   // 3. Query Cash Position
-  // Fetch latest day book entry
   const { data: latestDayBook } = await supabase
     .from('day_books')
     .select('closing_cash_balance')
@@ -78,88 +62,123 @@ export default async function DashboardPage() {
     .select('*', { count: 'exact', head: true });
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6 bg-slate-50 min-h-screen">
-      <div className="flex items-center justify-between space-y-2">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Owner Dashboard - {quarryName}</h2>
-          {user && (
-            <p className="text-muted-foreground text-slate-500 mt-1">
-              Welcome back, {user.email}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-            {isConnected ? '🟢 Sync Connected' : '🔴 Sync Error'}
-          </div>
-          
-          <form action={logout}>
-            <button 
-              type="submit" 
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 border border-slate-300 bg-white hover:bg-slate-100 h-9 px-4 py-2"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </button>
-          </form>
-        </div>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Overview</h1>
+        <p className="text-slate-500 mt-1">Real-time financial and operational metrics.</p>
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-8">
-        <div className="rounded-xl border bg-white text-card-foreground shadow-sm p-6">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Today's Sales</h3>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+      {/* KPI Cards (Tremor Style) */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <KpiCard 
+          title="Today's Sales" 
+          value={formatCurrency(todaysSales)} 
+          subValue={`${todaysQty.toFixed(0)} CFT dispatched`}
+          icon={DollarSign} 
+        />
+        <KpiCard 
+          title="Monthly P/L" 
+          value={formatCurrency(monthlyPL)} 
+          subValue={monthlyPL >= 0 ? "Profitable" : "Operating at loss"}
+          icon={TrendingUp} 
+          trend={monthlyPL >= 0 ? 'up' : 'down'}
+        />
+        <KpiCard 
+          title="Cash Position" 
+          value={formatCurrency(cashPosition)} 
+          subValue="Available cash in hand"
+          icon={Activity} 
+        />
+        <KpiCard 
+          title="Active Parties" 
+          value={partiesCount?.toString() || "0"} 
+          subValue="Total registered accounts"
+          icon={Users} 
+        />
+      </div>
+
+      {/* Charts / Secondary Metrics Grid */}
+      <div className="grid gap-6 md:grid-cols-7 mt-8">
+        <div className="md:col-span-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-slate-900">Monthly Revenue vs Expenses</h3>
+            <BarChart3 className="h-5 w-5 text-slate-400" />
           </div>
-          <div className="text-2xl font-bold">{formatCurrency(todaysSales)}</div>
-          <p className="text-xs text-muted-foreground text-slate-500 mt-1">
-            Total sales processed today
-          </p>
+          <div className="h-[300px] w-full flex items-end gap-8 pb-6 pt-10 px-4 border-b border-l border-slate-100">
+            {/* Very simple mock chart for aesthetic purposes since Recharts needs client components */}
+            <div className="w-full relative h-full flex items-end group">
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded">
+                {formatCurrency(monthlyRevenue)}
+              </div>
+              <div className="w-full bg-blue-500 rounded-t-sm" style={{ height: '100%' }}></div>
+            </div>
+            <div className="w-full relative h-full flex items-end group">
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded">
+                {formatCurrency(monthlyExpenses)}
+              </div>
+              <div className="w-full bg-rose-400 rounded-t-sm" style={{ height: `${(monthlyExpenses / (monthlyRevenue || 1)) * 100}%`, minHeight: '10%' }}></div>
+            </div>
+          </div>
+          <div className="flex justify-around mt-4 text-sm text-slate-500">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div> Revenue
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-rose-400"></div> Expenses
+            </div>
+          </div>
         </div>
-        
-        <div className="rounded-xl border bg-white text-card-foreground shadow-sm p-6">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Monthly P/L</h3>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+
+        <div className="md:col-span-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+           <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-slate-900">Today's Operations</h3>
+            <Truck className="h-5 w-5 text-slate-400" />
           </div>
-          <div className={`text-2xl font-bold ${monthlyPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {monthlyPL >= 0 ? '+' : ''}{formatCurrency(monthlyPL)}
+          <div className="space-y-6 mt-6">
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-slate-500">Vehicle Trips</span>
+                <span className="font-medium">{todaysSalesData?.length || 0} trips</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full" style={{ width: '45%' }}></div>
+              </div>
+            </div>
+            
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-slate-500">Production Estimate</span>
+                <span className="font-medium">{formatCurrency(todaysQty * 0.8)} tons</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2">
+                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '65%' }}></div>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground text-slate-500 mt-1">
-            Revenue minus expenses this month
-          </p>
-        </div>
-        
-        <div className="rounded-xl border bg-white text-card-foreground shadow-sm p-6">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Cash Position</h3>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="text-2xl font-bold">{formatCurrency(cashPosition)}</div>
-          <p className="text-xs text-muted-foreground text-slate-500 mt-1">
-            From latest day book closing
-          </p>
-        </div>
-        
-        <div className="rounded-xl border bg-white text-card-foreground shadow-sm p-6">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Active Parties</h3>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="text-2xl font-bold">{partiesCount || 0}</div>
-          <p className="text-xs text-muted-foreground text-slate-500 mt-1">
-            Total registered accounts
-          </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function KpiCard({ title, value, subValue, icon: Icon, trend }: { title: string, value: string | number, subValue: string, icon: any, trend?: 'up' | 'down' }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow duration-200 relative overflow-hidden group">
+      {/* Subtle top border accent */}
+      <div className={`absolute top-0 left-0 w-full h-1 ${trend === 'down' ? 'bg-rose-500' : 'bg-blue-600'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
       
-      {error && (
-        <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          <h4 className="font-bold">Database Connection Error</h4>
-          <p className="text-sm mt-1">{error.message}</p>
-          <p className="text-sm mt-1 text-red-600">Please check your Supabase credentials in .env.local and ensure the database is running.</p>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-slate-500 tracking-tight">{title}</h3>
+        <div className="p-2 bg-slate-50 rounded-lg">
+          <Icon className={`h-5 w-5 ${trend === 'down' ? 'text-rose-500' : 'text-slate-600'}`} />
         </div>
-      )}
+      </div>
+      <div className="mt-4">
+        <div className="text-3xl font-bold text-slate-900 tracking-tight">{value}</div>
+        <p className={`text-xs mt-1 font-medium ${trend === 'down' ? 'text-rose-600' : 'text-slate-500'}`}>
+          {subValue}
+        </p>
+      </div>
     </div>
   );
 }

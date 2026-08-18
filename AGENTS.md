@@ -1,3 +1,5 @@
+<!-- Alias Note: CLAUDE.md and AI agent instructions for project/mbm-dashboard redirect directly to this AGENTS.md file. -->
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
