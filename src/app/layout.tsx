@@ -25,6 +25,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { data: { user } } = await supabase.auth.getUser();
 
   let isConnected = false;
+  let quarryName = "MBM Quarry";
+  
   if (user) {
     const { data: globalSettings, error } = await supabase
       .from("global_settings")
@@ -32,6 +34,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       .limit(1)
       .single();
     isConnected = !error && globalSettings !== null;
+    if (globalSettings?.quarry_name) {
+      quarryName = globalSettings.quarry_name;
+    }
   }
 
   return (
@@ -41,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="min-h-full flex flex-col bg-slate-50">
         {user ? (
-          <AppLayout userEmail={user.email} isConnected={isConnected}>
+          <AppLayout quarryName={quarryName} isConnected={isConnected}>
             {children}
           </AppLayout>
         ) : (

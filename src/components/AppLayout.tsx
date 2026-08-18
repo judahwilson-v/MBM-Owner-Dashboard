@@ -114,43 +114,7 @@ export function AppLayout({ children, isConnected, quarryName }: AppLayoutProps)
             );
           })}
         </div>
-                className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md leading-5 bg-slate-50 placeholder-slate-500 focus:outline-none focus:placeholder-slate-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-shadow duration-200"
-                placeholder="Search globally..."
-              />
-            </form>
-          </div>
-          <div className="ml-4 flex items-center md:ml-6 gap-4">
-            <div className={cn(
-              "hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors",
-              isConnected 
-                ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
-                : "bg-rose-50 border-rose-200 text-rose-700"
-            )}>
-              <span className={cn(
-                "relative flex h-2.5 w-2.5",
-                isConnected ? "text-emerald-500" : "text-rose-500"
-              )}>
-                {isConnected && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span className={cn("relative inline-flex rounded-full h-2.5 w-2.5", isConnected ? "bg-emerald-500" : "bg-rose-500")}></span>
-              </span>
-              {isConnected ? "Live Sync Active" : "Sync Error"}
-            </div>
-            
-            <button className="p-1 rounded-full text-slate-400 hover:text-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-              <Bell className="h-6 w-6" />
-            </button>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <div className="flex-1 overflow-auto relative">
-          <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full max-w-7xl">
-            {children}
-          </div>
-        </div>
-      </main>
+      </nav>
     </div>
   );
 }
