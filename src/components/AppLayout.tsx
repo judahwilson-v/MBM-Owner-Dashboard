@@ -83,7 +83,7 @@ export function AppLayout({ children, isConnected, quarryName }: AppLayoutProps)
 
       {/* Main Scrollable Content */}
       <main className="flex-1 w-full max-w-lg mx-auto">
-        <div className="p-4 sm:p-6 animate-in fade-in duration-500">
+        <div key={pathname} className="p-4 sm:p-6 animate-in fade-in duration-500">
           {children}
         </div>
       </main>
