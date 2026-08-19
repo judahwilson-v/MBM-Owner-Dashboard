@@ -4,6 +4,7 @@ import "./globals.css";
 import { createClient } from "@/utils/supabase/server";
 import { AppLayout } from "@/components/AppLayout";
 import { cookies } from "next/headers";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,16 +43,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50">
-        {user ? (
-          <AppLayout quarryName={quarryName} isConnected={isConnected}>
-            {children}
-          </AppLayout>
-        ) : (
-          children
-        )}
+      <body className="min-h-full flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {user ? (
+            <AppLayout quarryName={quarryName} isConnected={isConnected}>
+              {children}
+            </AppLayout>
+          ) : (
+            children
+          )}
+        </ThemeProvider>
       </body>
     </html>
   );
