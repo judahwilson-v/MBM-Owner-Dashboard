@@ -15,14 +15,17 @@ export default async function SalesPage(props: { searchParams: Promise<{ [key: s
     .order('sale_date', { ascending: false });
 
   let filterDisplay = "Recent dispatches";
-  if (dateStr) {
-    const start = new Date(dateStr);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(dateStr);
-    end.setHours(23, 59, 59, 999);
+  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    // Treat as IST (+05:30) timezone boundaries since currency is INR
+    const startIso = `${dateStr}T00:00:00+05:30`;
+    const endIso = `${dateStr}T23:59:59.999+05:30`;
     
-    query = query.gte('sale_date', start.toISOString()).lte('sale_date', end.toISOString());
-    filterDisplay = `Dispatches for ${format(start, "MMM dd, yyyy")}`;
+    query = query.gte('sale_date', startIso).lte('sale_date', endIso);
+    
+    // Format for display
+    const [year, month, day] = dateStr.split('-');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    filterDisplay = `Dispatches for ${months[parseInt(month) - 1]} ${day}, ${year}`;
   } else {
     query = query.limit(50);
   }

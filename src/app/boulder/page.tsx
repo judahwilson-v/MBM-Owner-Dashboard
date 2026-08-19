@@ -15,14 +15,17 @@ export default async function BoulderPage(props: { searchParams: Promise<{ [key:
     .order('date', { ascending: false });
 
   let filterDisplay = "Raw material arrivals";
-  if (dateStr) {
-    const start = new Date(dateStr);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(dateStr);
-    end.setHours(23, 59, 59, 999);
+  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    // Treat as IST (+05:30) timezone boundaries since currency is INR
+    const startIso = `${dateStr}T00:00:00+05:30`;
+    const endIso = `${dateStr}T23:59:59.999+05:30`;
     
-    query = query.gte('date', start.toISOString()).lte('date', end.toISOString());
-    filterDisplay = `Arrivals for ${format(start, "MMM dd, yyyy")}`;
+    query = query.gte('date', startIso).lte('date', endIso);
+    
+    // Format for display
+    const [year, month, day] = dateStr.split('-');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    filterDisplay = `Arrivals for ${months[parseInt(month) - 1]} ${day}, ${year}`;
   } else {
     query = query.limit(50);
   }
