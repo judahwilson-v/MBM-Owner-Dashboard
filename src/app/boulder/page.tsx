@@ -1,40 +1,78 @@
 import { createClient } from "@/utils/supabase/server";
 import { format } from "date-fns";
-import { Search, Filter, Download, ArrowDownToLine } from "lucide-react";
+import { Search, Filter, ArrowDownToLine } from "lucide-react";
+import { DatePicker } from "@/components/DatePicker";
 
-export default async function BoulderPage() {
+export default async function BoulderPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParams = await props.searchParams;
+  const dateStr = typeof searchParams.date === 'string' ? searchParams.date : undefined;
+
   const supabase = await createClient();
   
-  // Fetch recent incoming boulders
-  const { data: boulders, error } = await supabase
+  let query = supabase
     .from('incoming_boulder')
     .select('*')
-    .order('date', { ascending: false })
-    .limit(50);
+    .order('date', { ascending: false });
+
+  let filterDisplay = "Raw material arrivals";
+  if (dateStr) {
+    const start = new Date(dateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateStr);
+    end.setHours(23, 59, 59, 999);
+    
+    query = query.gte('date', start.toISOString()).lte('date', end.toISOString());
+    filterDisplay = `Arrivals for ${format(start, "MMM dd, yyyy")}`;
+  } else {
+    query = query.limit(50);
+  }
+
+  const { data: boulders, error } = await query;
+
+  // Aggregates
+  const totalCount = boulders?.length || 0;
+  const totalAmount = boulders?.reduce((sum, b) => sum + (b.amount || 0), 0) || 0;
+  const totalQty = boulders?.reduce((sum, b) => sum + (b.qty || 0), 0) || 0;
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500 pb-6">
-      <div className="pt-2 pb-2">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Boulders</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-sm">Raw material arrivals</p>
+      <div className="pt-2 pb-2 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Boulders</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-sm">{filterDisplay}</p>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-2">
+        <DatePicker />
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <input 
             type="text" 
-            placeholder="Search supplier or vehicle..." 
-            className="w-full pl-9 pr-4 py-2.5 text-[15px] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 shadow-sm transition-all"
+            placeholder="Search supplier..." 
+            className="w-full pl-9 pr-4 py-2 text-sm text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 shadow-sm transition-all"
           />
         </div>
-        <button className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0 active:scale-95 transition-transform">
-          <Filter className="h-5 w-5" />
-        </button>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium uppercase">Total Entries</p>
+          <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalCount}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium uppercase">Total Qty</p>
+          <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{totalQty.toFixed(1)} Tons</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium uppercase">Total Amount</p>
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">₹{totalAmount.toLocaleString('en-IN')}</p>
+        </div>
       </div>
         
       {/* Premium Table Container (Scrollable) */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex flex-col">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex flex-col mt-2">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 uppercase font-bold tracking-wider border-b border-slate-200 dark:border-slate-800 whitespace-nowrap">

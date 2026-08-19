@@ -1,40 +1,99 @@
 import { createClient } from "@/utils/supabase/server";
 import { format } from "date-fns";
 import { Search, Filter, Download } from "lucide-react";
+import { DatePicker } from "@/components/DatePicker";
 
-export default async function SalesPage() {
+export default async function SalesPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParams = await props.searchParams;
+  const dateStr = typeof searchParams.date === 'string' ? searchParams.date : undefined;
+
   const supabase = await createClient();
   
-  // Fetch recent sales
-  const { data: sales, error } = await supabase
+  let query = supabase
     .from('outgoing_sales')
     .select('*')
-    .order('sale_date', { ascending: false })
-    .limit(50);
+    .order('sale_date', { ascending: false });
+
+  let filterDisplay = "Recent dispatches";
+  if (dateStr) {
+    const start = new Date(dateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateStr);
+    end.setHours(23, 59, 59, 999);
+    
+    query = query.gte('sale_date', start.toISOString()).lte('sale_date', end.toISOString());
+    filterDisplay = `Dispatches for ${format(start, "MMM dd, yyyy")}`;
+  } else {
+    query = query.limit(50);
+  }
+
+  const { data: sales, error } = await query;
+
+  // Aggregates
+  const totalSales = sales?.length || 0;
+  const totalAmount = sales?.reduce((sum, s) => sum + (s.final_amount || 0), 0) || 0;
+  const totalQty = sales?.reduce((sum, s) => sum + (s.qty || 0), 0) || 0;
+  
+  const materialAgg = sales?.reduce((acc: any, s: any) => {
+    const mat = s.material_name || 'Other';
+    acc[mat] = (acc[mat] || 0) + (s.qty || 0);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500 pb-6">
-      <div className="pt-2 pb-2">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Sales Log</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-sm">Recent dispatches</p>
+      <div className="pt-2 pb-2 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Sales Log</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-sm">{filterDisplay}</p>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-2">
+        <DatePicker />
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <input 
             type="text" 
-            placeholder="Search party or vehicle..." 
-            className="w-full pl-9 pr-4 py-2.5 text-[15px] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm transition-all"
+            placeholder="Search party..." 
+            className="w-full pl-9 pr-4 py-2 text-sm text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm transition-all"
           />
         </div>
-        <button className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0 active:scale-95 transition-transform">
-          <Filter className="h-5 w-5" />
-        </button>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium uppercase">Total Sales</p>
+          <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalSales}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium uppercase">Total Amount</p>
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">₹{totalAmount.toLocaleString('en-IN')}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium uppercase">Total Qty</p>
+          <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{totalQty.toFixed(1)} CFT</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm overflow-hidden">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium uppercase">Materials</p>
+          <div className="text-xs font-medium text-slate-700 dark:text-slate-300 mt-0.5 space-y-0.5">
+            {Object.keys(materialAgg || {}).length === 0 && <span>-</span>}
+            {Object.entries(materialAgg || {}).slice(0, 2).map(([mat, qty]: any) => (
+              <div key={mat} className="flex justify-between">
+                <span className="truncate pr-1">{mat}</span>
+                <span>{qty.toFixed(0)}</span>
+              </div>
+            ))}
+            {Object.keys(materialAgg || {}).length > 2 && (
+               <div className="text-[10px] text-slate-400">+{Object.keys(materialAgg || {}).length - 2} more...</div>
+            )}
+          </div>
+        </div>
       </div>
         
       {/* Premium Table Container (Scrollable) */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex flex-col">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex flex-col mt-2">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 uppercase font-bold tracking-wider border-b border-slate-200 dark:border-slate-800 whitespace-nowrap">
