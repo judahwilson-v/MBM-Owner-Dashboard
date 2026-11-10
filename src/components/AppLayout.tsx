@@ -8,6 +8,7 @@ import {
   Truck, 
   Database,
   Activity,
+  CheckSquare,
   LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ export function AppLayout({ children, isConnected, quarryName }: AppLayoutProps)
     { name: 'Home', href: '/', icon: LayoutDashboard },
     { name: 'Sales', href: '/sales', icon: Truck },
     { name: 'Boulders', href: '/boulder', icon: Database },
+    { name: 'Approvals', href: '/approvals', icon: CheckSquare },
   ];
 
   return (
@@ -58,10 +60,10 @@ export function AppLayout({ children, isConnected, quarryName }: AppLayoutProps)
               <div className="flex items-center gap-1.5 mt-0.5">
                 <div className={cn(
                   "h-2 w-2 rounded-full",
-                  isConnected ? "bg-emerald-500" : "bg-rose-500 animate-pulse"
+                  isConnected ? "bg-slate-400" : "bg-amber-500"
                 )} />
                 <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  {isConnected ? 'Live' : 'Offline'}
+                  {isConnected ? 'Cloud reachable' : 'Cloud unavailable'}
                 </span>
               </div>
             </div>

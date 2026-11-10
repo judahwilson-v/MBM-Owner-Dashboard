@@ -1,5 +1,6 @@
+import {loadOwnerOverview,siteDate,siteDateTime} from "@/lib/erp-read-contract";
 import { createClient } from "@/utils/supabase/server";
-import { Activity, CreditCard, DollarSign, Users, TrendingUp, Truck, ChevronRight } from "lucide-react";
+import { Activity, DollarSign, TrendingUp, Truck, ChevronRight } from "lucide-react";
 import React from "react";
 import Link from "next/link";
 
@@ -8,69 +9,33 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 };
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStartStr = today.toISOString();
-  
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const monthStartStr = monthStart.toISOString();
 
-  // 1. Query Today's Sales
-  const { data: todaysSalesData } = await supabase
-    .from('outgoing_sales')
-    .select('final_amount, qty')
-    .gte('sale_date', todayStartStr);
-    
-  const todaysSales = todaysSalesData?.reduce((sum, sale) => sum + (sale.final_amount || 0), 0) || 0;
-  const todaysQty = todaysSalesData?.reduce((sum, sale) => sum + (sale.qty || 0), 0) || 0;
-
-  // 2. Query Monthly P/L
-  const { data: monthlySalesData } = await supabase
-    .from('outgoing_sales')
-    .select('final_amount')
-    .gte('sale_date', monthStartStr);
-  const monthlyRevenue = monthlySalesData?.reduce((sum, sale) => sum + (sale.final_amount || 0), 0) || 0;
-  
-  const { data: monthlyExpensesData } = await supabase
-    .from('expenses')
-    .select('amount')
-    .gte('expense_date', monthStartStr);
-  const monthlyExpenses = monthlyExpensesData?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0;
-  
-  const monthlyPL = monthlyRevenue - monthlyExpenses;
-
-  // 3. Query Cash Position
-  const { data: latestDayBook } = await supabase
-    .from('day_books')
-    .select('closing_cash_balance')
-    .order('business_date', { ascending: false })
-    .limit(1)
-    .single();
-    
-  const cashPosition = latestDayBook?.closing_cash_balance || 0;
+  const overview=await loadOwnerOverview(supabase);
+  if(overview.status==='unavailable')return <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950"><h1 className="font-bold">Financial overview unavailable</h1><p>The synced records could not be verified. No zero balances or profit figures are substituted.</p></div>;
+  const {todaysSales,todaysQty,dispatchCount,revenue,recordedExpenses,cash}=overview;
+  const monthlyDifference=revenue-recordedExpenses;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-6">
-      
+
       {/* Mobile Greeting */}
       <div className="pt-2 pb-4">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Overview</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-sm">Today's live metrics</p>
+        <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-sm">Synced records for {overview.date} (India time)</p>
       </div>
-      
+
       {/* Primary KPI: Today's Sales (Hero Card) */}
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-indigo-600 to-blue-700 p-6 shadow-lg shadow-indigo-600/20 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
         <div className="flex items-center justify-between relative z-10">
-          <h3 className="text-indigo-100 font-medium text-sm">Today's Sales</h3>
+          <h3 className="text-indigo-100 font-medium text-sm">Today&apos;s Sales</h3>
           <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
             <DollarSign className="h-5 w-5 text-white" />
           </div>
@@ -79,7 +44,7 @@ export default async function DashboardPage() {
           <div className="text-4xl font-bold tracking-tight">{formatCurrency(todaysSales)}</div>
           <div className="flex items-center gap-2 mt-2">
             <span className="inline-flex items-center rounded-full bg-emerald-400/20 px-2 py-0.5 text-xs font-medium text-emerald-200 border border-emerald-400/30">
-              <TrendingUp className="mr-1 h-3 w-3" /> Live
+              <TrendingUp className="mr-1 h-3 w-3" /> Synced
             </span>
             <span className="text-indigo-200 text-xs">{todaysQty.toFixed(0)} CFT dispatched</span>
           </div>
@@ -88,21 +53,23 @@ export default async function DashboardPage() {
 
       {/* Secondary KPIs Grid (2 Columns on Mobile) */}
       <div className="grid grid-cols-2 gap-3">
-        <KpiCard 
-          title="Cash Position" 
-          value={formatCurrency(cashPosition)} 
-          subValue="Available cash"
-          icon={Activity} 
+        <KpiCard
+          title="Last recorded cash"
+          value={cash?formatCurrency(cash.amount):"Unavailable"}
+          subValue={cash?`Business date ${siteDate(new Date(cash.businessDate))}`:"No synced Day Book"}
+          icon={Activity}
           color="slate"
         />
-        <KpiCard 
-          title="Monthly P/L" 
-          value={formatCurrency(Math.abs(monthlyPL))} 
-          subValue={monthlyPL >= 0 ? "Profit" : "Loss"}
-          icon={monthlyPL >= 0 ? TrendingUp : TrendingUp} 
-          color={monthlyPL >= 0 ? "emerald" : "rose"}
+        <KpiCard
+          title="Sales less recorded expenses"
+          value={formatCurrency(monthlyDifference)}
+          subValue="Not a profit calculation"
+          icon={TrendingUp}
+          color={monthlyDifference >= 0 ? "emerald" : "rose"}
         />
       </div>
+
+      <p className="text-xs text-slate-500">{cash?`Cash row last updated ${siteDateTime(cash.updatedAt)}. Cloud sync completeness is not verified here.`:'Cash is unavailable until a Day Book is synced.'}</p>
 
       {/* Today's Operations Tracker */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm mt-2">
@@ -110,27 +77,17 @@ export default async function DashboardPage() {
           <h3 className="font-semibold text-slate-900 dark:text-slate-100">Operations</h3>
           <Truck className="h-4 w-4 text-slate-400 dark:text-slate-500" />
         </div>
-        
+
         <div className="space-y-5">
           <div>
             <div className="flex justify-between text-sm mb-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Vehicle Trips</span>
-              <span className="font-bold text-slate-900 dark:text-slate-100">{todaysSalesData?.length || 0}</span>
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Recorded dispatches</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">{dispatchCount}</span>
             </div>
-            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-blue-500 h-full rounded-full" style={{ width: '45%' }}></div>
-            </div>
+
           </div>
-          
-          <div>
-            <div className="flex justify-between text-sm mb-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Est. Production</span>
-              <span className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(todaysQty * 0.8)} tons</span>
-            </div>
-            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-emerald-500 h-full rounded-full" style={{ width: '65%' }}></div>
-            </div>
-          </div>
+
+
         </div>
       </div>
 
@@ -168,13 +125,13 @@ export default async function DashboardPage() {
   );
 }
 
-function KpiCard({ title, value, subValue, icon: Icon, color = "slate" }: { title: string, value: string | number, subValue: string, icon: any, color?: "slate" | "emerald" | "rose" }) {
+function KpiCard({ title, value, subValue, icon: Icon, color = "slate" }: { title: string, value: string | number, subValue: string, icon: React.ComponentType<{className?:string}>, color?: "slate" | "emerald" | "rose" }) {
   const colorMap = {
     slate: "text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800",
     emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/30",
     rose: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/30",
   };
-  
+
   const textMap = {
     slate: "text-slate-900 dark:text-slate-100",
     emerald: "text-emerald-700 dark:text-emerald-400",

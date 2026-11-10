@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:contract": "tsx tests/cross-app-contract.test.mts",
+    "test:approvals": "vitest run --config tests/approvals/vitest.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -29,6 +31,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "4.1.10"
   }
 }

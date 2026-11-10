@@ -47,11 +47,21 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in and tries to go to login, redirect to dashboard
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+  // Authentication alone does not authorize access to private company data.
+  // Owner-provisioned membership is required on every private page.
+  if (user && !request.nextUrl.pathname.startsWith('/access-denied')) {
+    const { data: membership, error } = await supabase.from('website_approver_principals')
+      .select('active').eq('supabase_user_id', user.id).single()
+    if (error || !membership?.active) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/access-denied'
+      return NextResponse.redirect(url)
+    }
+    if (request.nextUrl.pathname === '/login') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

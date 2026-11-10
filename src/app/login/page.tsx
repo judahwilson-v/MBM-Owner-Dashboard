@@ -1,11 +1,12 @@
 import { login } from './actions'
 import { Activity, ShieldCheck, ArrowRight } from 'lucide-react'
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string }
+  searchParams: Promise<{ error?: string }>
 }) {
+  const params = await searchParams;
   return (
     <div className="flex min-h-screen w-full flex-col bg-zinc-950 font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-hidden">
       
@@ -58,12 +59,12 @@ export default function LoginPage({
               />
             </div>
             
-            {searchParams?.error && (
+            {params?.error && (
               <div className="rounded-xl bg-rose-500/10 p-4 border border-rose-500/20">
                 <div className="flex items-center">
                   <div className="ml-2">
                     <h3 className="text-sm font-medium text-rose-400">Authentication Failed</h3>
-                    <div className="mt-0.5 text-xs text-rose-400/80">{searchParams.error}</div>
+                    <div className="mt-0.5 text-xs text-rose-400/80">{params.error}</div>
                   </div>
                 </div>
               </div>

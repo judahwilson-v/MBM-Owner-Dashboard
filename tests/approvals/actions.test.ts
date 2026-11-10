@@ -1,0 +1,17 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+const s=vi.hoisted(()=>({user:null as any,principal:null as any,rpc:vi.fn(),from:vi.fn(),error:null as any}));
+vi.mock('next/cache',()=>({revalidatePath:vi.fn()}));
+vi.mock('@/utils/supabase/server',()=>({createClient:async()=>({auth:{getUser:async()=>({data:{user:s.user},error:s.error})},from:s.from,rpc:s.rpc})}));
+import {submitDecision} from '@/app/approvals/actions';
+import {websiteMembership} from '@/lib/approvals/identity';
+const id='00000000-0000-4000-8000-000000000001';
+beforeEach(()=>{s.user={id:'stable-owner',user_metadata:{name:'Anything'}};s.principal={principal_id:'mapped-local-principal',display_name:'Synthetic Approver',active:true};s.error=null;s.rpc.mockReset().mockResolvedValue({error:null});s.from.mockReset().mockImplementation(()=>{const q:any={select:()=>q,eq:()=>q,single:async()=>({data:s.principal,error:null})};return q});});
+it('unauthenticated action cannot write or obtain membership',async()=>{s.user=null;expect((await submitDecision('request',true,'',id)).success).toBe(false);expect(s.rpc).not.toHaveBeenCalled();expect(s.from).not.toHaveBeenCalled();});
+it('unmapped account and spoofed metadata cannot authorize',async()=>{s.principal=null;expect((await submitDecision('request',true,'',id)).success).toBe(false);expect(s.rpc).not.toHaveBeenCalled();});
+it('inactive membership cannot authorize',async()=>{s.principal.active=false;expect((await submitDecision('request',true,'',id)).success).toBe(false);expect(s.rpc).not.toHaveBeenCalled();});
+it('runtime boolean must be boolean, not truthy strings',async()=>{expect((await submitDecision('request','false' as any,'',id)).success).toBe(false);expect(s.rpc).not.toHaveBeenCalled();});
+it('mapped caller submits idempotent intent parameters without a client actor/name',async()=>{expect((await submitDecision('request',true,' checked ',id)).success).toBe(true);expect(s.rpc).toHaveBeenCalledWith('submit_change_request_decision',{p_request_id:'request',p_approve:true,p_note:'checked',p_submission_id:id});});
+it('provider failure never reports a queued success',async()=>{s.rpc.mockResolvedValue({error:{message:'synthetic failure'}});expect((await submitDecision('request',true,'',id)).success).toBe(false);});
+it('auth provider error fails closed even with a user object',async()=>{s.error={message:'synthetic expired'};expect((await websiteMembership()).principal).toBeNull();});
+it('missing id, oversized note and malformed submission id fail before provider effects',async()=>{for(const args of [['',true,'',id],['r',true,'x'.repeat(2001),id],['r',true,'','not-uuid']] as const){expect((await submitDecision(...args)).success).toBe(false)}expect(s.rpc).not.toHaveBeenCalled();});
+it('monetary diff labels are readable without raw JSON',async()=>{const {requestDiff,requestTitle}=await import('@/lib/approvals/format');expect(requestTitle('edit_fields')).toBe('Sale correction');expect(requestDiff('edit_fields','{"qty":10}','{"qty":8}')).toBe('Quantity: 10 → 8');});
