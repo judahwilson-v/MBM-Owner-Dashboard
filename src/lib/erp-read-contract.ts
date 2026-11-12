@@ -1,5 +1,5 @@
 // Read contract verified against the ERP Prisma/sync schema. No account mutations.
-export const ERP_TABLES = {sales:'outgoing_sales',expenses:'expenses',dayBooks:'day_books',partyLedger:'party_ledger',boulders:'incoming_boulder'} as const;
+export const ERP_TABLES = {sales:'website_outgoing_sales',expenses:'website_expenses',dayBooks:'website_day_books',partyLedger:'party_ledger',boulders:'website_incoming_boulder'} as const;
 export const SITE_TIMEZONE = 'Asia/Kolkata';
 export function siteDate(value:Date=new Date()):string {
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:SITE_TIMEZONE,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(value);

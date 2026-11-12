@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { createClient } from "@/utils/supabase/server";
+import { activeOwner } from "@/lib/owner-auth/service";
 import { AppLayout } from "@/components/AppLayout";
 import { cookies } from "next/headers";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -25,12 +26,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  const authorizedOwner = user ? await activeOwner(supabase,user.id) : false;
   let isConnected = false;
   let quarryName = "MBM Quarry";
   
-  if (user) {
+  if (authorizedOwner) {
     const { data: globalSettings, error } = await supabase
-      .from("global_settings")
+      .from("website_global_settings")
       .select("quarry_name")
       .limit(1)
       .single();
@@ -53,7 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           enableSystem
           disableTransitionOnChange
         >
-          {user ? (
+          {authorizedOwner ? (
             <AppLayout quarryName={quarryName} isConnected={isConnected}>
               {children}
             </AppLayout>

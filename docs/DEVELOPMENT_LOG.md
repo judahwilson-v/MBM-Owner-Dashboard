@@ -85,3 +85,9 @@ No company records, credentials, private operational details or supplied
 vehicle lists are added by this review. Existing repository history is not
 rewritten or certified sanitized by this update. Commits record real progress; they do not imply a
 particular contribution-graph result.
+
+## 2026-11-12 06:46 IST - Publish previously tested V4 owner website source
+
+Restores the previously tested owner username/login API, exact configured UID and active-membership gate, safe dashboard endpoint and actual AppLayout logout action with local cookie cleanup. Source matches the preserved V4 website checkpoint. Historical checks: 19 auth/logout checks, 15 approval/cookie checks, strict types and production build; prior 25 read checks unchanged. No human login or live application roundtrip is claimed.
+
+This is source publication to the existing review branch, not deployment, installation, provider activation or readiness approval. Review-branch deployment remains disabled. Private runtime credentials, human provisioning, actual desktop/device tests and full live sale-to-approval roundtrip remain outside this publication. Native source remains private.

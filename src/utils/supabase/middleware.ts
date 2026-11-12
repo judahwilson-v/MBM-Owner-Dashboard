@@ -1,7 +1,13 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {ownerPrincipalAllows} from '@/lib/owner-auth/config'
 
 export async function updateSession(request: NextRequest) {
+  // Native bearer endpoints enforce ordinary Auth and membership themselves.
+  // Do not redirect them based on unrelated browser cookies.
+  if (['/api/owner/session','/api/owner/dashboard'].includes(request.nextUrl.pathname)) {
+    return NextResponse.next({request})
+  }
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -51,8 +57,8 @@ export async function updateSession(request: NextRequest) {
   // Owner-provisioned membership is required on every private page.
   if (user && !request.nextUrl.pathname.startsWith('/access-denied')) {
     const { data: membership, error } = await supabase.from('website_approver_principals')
-      .select('active').eq('supabase_user_id', user.id).single()
-    if (error || !membership?.active) {
+      .select('principal_id,active,supabase_user_id').eq('supabase_user_id', user.id).single()
+    if (error || !ownerPrincipalAllows(user.id,membership)) {
       const url = request.nextUrl.clone()
       url.pathname = '/access-denied'
       return NextResponse.redirect(url)

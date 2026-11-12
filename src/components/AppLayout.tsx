@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
+import { logout } from "@/app/login/actions";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -71,9 +72,10 @@ export function AppLayout({ children, isConnected, quarryName }: AppLayoutProps)
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <form action="/login/actions/logout" method="POST">
+            <form action={logout}>
               <button 
                 type="submit"
+                aria-label="Sign out"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
                 <LogOut className="h-4 w-4" />

@@ -23,13 +23,13 @@ await test('customer portal is deliberately closed in the private approval websi
 await test('owner overview explicitly avoids unverified profit/live/production claims',()=>{const source=fs.readFileSync('src/app/page.tsx','utf8');assert(!source.includes('Monthly P/L'));assert(!source.includes('Est. Production'));assert(!source.includes('Live</span>'));assert(source.includes('Not a profit calculation'));assert(source.includes('Last recorded cash'));});
 await test('query names exist in ERP exported DDL contract',()=>{
  const fixture=JSON.parse(fs.readFileSync('tests/fixtures/erp-contract.json','utf8'));
- for(const table of Object.values(ERP_TABLES))assert(fixture.tables[table],`Unknown ERP table ${table}`);
+ for(const table of Object.values(ERP_TABLES))assert(fixture.tables[table.replace(/^website_/, '')],`Unknown ERP table ${table}`);
  for(const column of ['sale_date','final_amount','book_number','page_number','serial_number'])assert(fixture.tables.outgoing_sales.includes(column));
  assert(!fixture.tables.outgoing_sales.includes('invoice_number'));assert(!fixture.tables.outgoing_sales.includes('total_amount'));
  assert(fixture.tables.party_ledger.includes('date'));assert(!fixture.tables.party_ledgers);
 });
 await test('500-row response is paged instead of silently capped',async()=>{
- let quantityPage=0;const fixture:any={from(table:string){let columns='';const q:any={select(value:string){columns=value;return q;},then(resolve:any){return Promise.resolve(columns.includes('qty')?{data:quantityPage++===0?Array.from({length:500},()=>({final_amount:1,qty:1})):[{final_amount:2,qty:2}],error:null}:table==='day_books'?okay[3]:{data:[],error:null}).then(resolve);}};for(const method of ['gte','lt','lte','order','limit','range','maybeSingle'])q[method]=()=>q;return q;}};
+ let quantityPage=0;const fixture:any={from(table:string){let columns='';const q:any={select(value:string){columns=value;return q;},then(resolve:any){return Promise.resolve(columns.includes('qty')?{data:quantityPage++===0?Array.from({length:500},()=>({final_amount:1,qty:1})):[{final_amount:2,qty:2}],error:null}:table==='website_day_books'?okay[3]:{data:[],error:null}).then(resolve);}};for(const method of ['gte','lt','lte','order','limit','range','maybeSingle'])q[method]=()=>q;return q;}};
  const result=await loadOwnerOverview(fixture,now);assert.equal(result.status,'available');if(result.status==='available'){assert.equal(result.dispatchCount,501);assert.equal(result.todaysSales,502);}
 });
 
@@ -52,7 +52,7 @@ await test('day books are queried by canonical UTC-midnight date label, not a lo
  // (2026-11-09T00:00:00+05:30 = 2026-11-08T18:30:00Z) excludes the same-day
  // row and the page reports "No synced Day Book" despite a synced row.
  const db=client(okay);await loadOwnerOverview(db,now);
- const dayBookQuery=db.queries[3];assert.equal(dayBookQuery.table,'day_books');
+ const dayBookQuery=db.queries[3];assert.equal(dayBookQuery.table,'website_day_books');
  const lte=dayBookQuery.calls.find((c:any)=>c[0]==='lte');
  assert(lte);assert.equal(lte[1],'business_date');assert.equal(lte[2],'2026-11-09T00:00:00.000Z');
 });
@@ -68,9 +68,9 @@ await test('rejected provider promises are unavailable, never fabricated records
  for(const kind of ['sales','boulders'] as const)assert.equal((await loadSiteLog(failing,kind,undefined)).status,'unavailable');
 });
 await test('every read query column fits proposed grants, never SELECT star',async()=>{
- const policy=fs.readFileSync('docs/database/W2-POLICY-COVERAGE-DRAFT.sql','utf8');
+ const policy=fs.readFileSync('docs/database/Q2-PRIVATE-NOT-EXECUTED.sql','utf8');
  const db=client(okay);await loadOwnerOverview(db,now);
  for(const kind of ['sales','boulders'] as const){const list=client([{data:[],error:null}]);await loadSiteLog(list,kind,undefined);db.queries.push(...list.queries);}
- for(const query of db.queries){const selected=query.calls.find((c:any)=>c[0]==='select')[1];assert(!selected.includes('*'));const grant=policy.match(new RegExp('GRANT SELECT\\(([^)]+)\\) ON public\\.'+query.table+' TO authenticated'));assert(grant,query.table);for(const col of selected.split(','))assert(grant[1].split(',').includes(col),query.table+'.'+col);}
+ for(const query of db.queries){const selected=query.calls.find((c:any)=>c[0]==='select')[1];assert(!selected.includes('*'));const grant=policy.match(new RegExp('CREATE VIEW public\\.'+query.table+' WITH \\([^)]*\\) AS SELECT ([^;]+?) FROM public\\.'));assert(grant,query.table);for(const col of selected.split(','))assert(grant[1].split(',').includes(col),query.table+'.'+col);}
 });
 console.log('All '+count+' cohesive owner checks passed.');
